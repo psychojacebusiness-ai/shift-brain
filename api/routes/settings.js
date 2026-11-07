@@ -148,13 +148,13 @@ publicSettingsRouter.get('/', publicConfigRateLimit, async (req, res) => {
   try {
     const settings = await readCachedSettings()
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
-    res.json({ settings })
+    res.json({ settings, clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY || null })
   } catch (err) {
     // Keep the public login usable even before the settings table is created.
     console.error('Public settings error:', err)
     settingsCache = { value: DEFAULT_SETTINGS, expiresAt: Date.now() + 60_000 }
     res.set('Cache-Control', 'public, max-age=30')
-    res.json({ settings: DEFAULT_SETTINGS })
+    res.json({ settings: DEFAULT_SETTINGS, clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY || null })
   }
 })
 
