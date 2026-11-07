@@ -12,10 +12,6 @@ __pycache__
 *.pyo
 *.zip
 security-audit*
-widget/src
-widget/index.html
-widget/vite.config.js
-widget/package*.json
 supabase
 *.md
 
