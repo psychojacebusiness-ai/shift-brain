@@ -14,7 +14,7 @@ import { CreateAccountScreen, ForgotPasswordScreen } from './components/AuthScre
 import { API_URL, syncUser } from './lib/api'
 import { DEFAULT_SETTINGS } from './config/settings'
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const BUILD_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 function AppContent({ settings, onSettingsChange }) {
   const { getToken, signOut } = useAuth()
@@ -595,20 +595,28 @@ function SignedOutFlow({ settings }) {
 
 export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
+  const [publishableKey, setPublishableKey] = useState(BUILD_PUBLISHABLE_KEY || '')
+  const [configError, setConfigError] = useState('')
 
   useEffect(() => {
     let cancelled = false
     const controller = new AbortController()
 
     fetch(`${API_URL}/config`, { signal: controller.signal })
-      .then(response => response.ok ? response.json() : null)
+      .then(response => {
+        if (!response.ok) throw new Error(`Configuration request failed (${response.status})`)
+        return response.json()
+      })
       .then(data => {
-        if (!cancelled && data?.settings) {
-          setSettings(current => ({ ...current, ...data.settings }))
-        }
+        if (cancelled) return
+        if (data?.settings) setSettings(current => ({ ...current, ...data.settings }))
+        if (data?.clerkPublishableKey) setPublishableKey(data.clerkPublishableKey)
+        else if (!BUILD_PUBLISHABLE_KEY) setConfigError('Clerk publishable key is not configured on the API service.')
       })
       .catch(error => {
-        if (error.name !== 'AbortError') console.warn('Using default settings:', error)
+        if (error.name === 'AbortError' || cancelled) return
+        console.error('Unable to load SHIFT Brain configuration:', error)
+        if (!BUILD_PUBLISHABLE_KEY) setConfigError('SHIFT Brain could not load its authentication configuration. Please try refreshing.')
       })
 
     return () => {
@@ -617,8 +625,11 @@ export default function App() {
     }
   }, [])
 
+  if (configError) return <div role="alert" style={{ padding: '24px', fontFamily: 'sans-serif', color: '#a02020' }}>{configError}</div>
+  if (!publishableKey) return <div style={{ padding: '24px', fontFamily: 'sans-serif' }}>Loading SHIFT Brain…</div>
+
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+    <ClerkProvider publishableKey={publishableKey}>
       <SignedOut><SignedOutFlow settings={settings} /></SignedOut>
       <SignedIn><AppContent settings={settings} onSettingsChange={next => setSettings(current => ({ ...current, ...next }))} /></SignedIn>
     </ClerkProvider>
